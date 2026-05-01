@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "express"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@ai-gen/shared": ["../../packages/shared/src/index.ts"],
+      "@ai-gen/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [{ "path": "../../packages/shared" }]
+}

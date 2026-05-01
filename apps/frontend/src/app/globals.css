@@ -1,0 +1,282 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+ * BlockKit — design tokens & base
+ * ========================================================================== */
+
+@layer base {
+  :root {
+    /* Surface tokens */
+    --bk-bg: theme('colors.paper.50');
+    --bk-surface: #ffffff;
+    --bk-surface-sunken: theme('colors.paper.100');
+    --bk-border: theme('colors.paper.300');
+    --bk-border-strong: theme('colors.paper.700');
+    --bk-text: theme('colors.paper.800');
+    --bk-text-muted: theme('colors.paper.500');
+
+    /* Semantic accents */
+    --bk-brand: theme('colors.brand.400');
+    --bk-brand-strong: theme('colors.brand.600');
+    --bk-sky: theme('colors.sky.400');
+    --bk-sun: theme('colors.sun.300');
+    --bk-ember: theme('colors.ember.400');
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    color: var(--bk-text);
+    /* No global background — each page/route owns its surface. Apply
+       `.bk-paper-bg` on app-shell containers that want the paper look. */
+    background-color: transparent;
+  }
+
+  /* Paper (light) page background used by logged-in app screens. */
+  .bk-paper-bg {
+    background-color: var(--bk-bg);
+    background-image:
+      linear-gradient(to right, rgb(0 0 0 / 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0 0 0 / 0.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  ::selection {
+    background-color: theme('colors.brand.200');
+    color: theme('colors.paper.900');
+  }
+
+  /* Focus-visible: always a clean blocky ring */
+  :focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  /* Tiny helper for pixel-grid on custom surfaces. */
+  .bk-grid-bg {
+    background-image:
+      linear-gradient(to right, rgb(0 0 0 / 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0 0 0 / 0.03) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+}
+
+/* =============================================================================
+ * Dark app theme
+ *
+ * The authenticated app used to render on the "paper" (light) palette while
+ * the marketing site used the "night" (dark) palette. That clash made the
+ * dashboard feel washed out. This overlay re-skins every component that uses
+ * the `paper-*` / `white` / `shadow-block*` tokens to a cohesive dark look,
+ * *without* touching the component source files. Apply it on the top-level
+ * <AppShell /> wrapper.
+ *
+ * Strategy: aggressive but scoped CSS selectors, all gated behind
+ * `.bk-dark-app` so the landing page is untouched.
+ * ========================================================================== */
+.bk-dark-app {
+  color: theme('colors.night.50');
+  background-color: theme('colors.night.900');
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Kill the light paper grid inherited from bk-paper-bg */
+.bk-dark-app.bk-paper-bg,
+.bk-dark-app .bk-paper-bg {
+  background-color: theme('colors.night.900');
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+/* --- Header / nav surfaces ------------------------------------------------ */
+.bk-dark-app header.sticky {
+  background-color: rgba(5, 6, 26, 0.85) !important; /* night-900/85 */
+  border-bottom-color: theme('colors.night.600') !important;
+  color: theme('colors.night.50');
+}
+.bk-dark-app header .text-paper-900,
+.bk-dark-app header .text-paper-800,
+.bk-dark-app header .text-paper-700 {
+  color: theme('colors.night.50') !important;
+}
+.bk-dark-app header .text-paper-500,
+.bk-dark-app header .text-paper-600 {
+  color: theme('colors.night.300') !important;
+}
+
+/* --- Cards (the biggest offender) ----------------------------------------- */
+.bk-dark-app .bg-white {
+  background-color: theme('colors.night.800') !important;
+}
+.bk-dark-app .bg-paper-50 {
+  background-color: theme('colors.night.700') !important;
+}
+.bk-dark-app .bg-paper-100 {
+  background-color: theme('colors.night.600') !important;
+}
+.bk-dark-app .bg-paper-200 {
+  background-color: theme('colors.night.500') !important;
+}
+
+/* Keep tinted cards readable but use dark backings */
+.bk-dark-app .bg-brand-50 {
+  background-color: rgba(63, 184, 78, 0.08) !important;
+}
+.bk-dark-app .bg-sky-50 {
+  background-color: rgba(78, 166, 255, 0.08) !important;
+}
+.bk-dark-app .bg-sun-50 {
+  background-color: rgba(255, 205, 63, 0.08) !important;
+}
+.bk-dark-app .bg-ember-50 {
+  background-color: rgba(242, 89, 58, 0.08) !important;
+}
+
+/* --- Borders -------------------------------------------------------------- */
+.bk-dark-app .border-paper-100,
+.bk-dark-app .border-paper-200,
+.bk-dark-app .border-paper-300 {
+  border-color: theme('colors.night.600') !important;
+}
+.bk-dark-app .border-paper-700,
+.bk-dark-app .border-paper-800,
+.bk-dark-app .border-paper-900 {
+  border-color: theme('colors.night.500') !important;
+}
+.bk-dark-app .divide-paper-100 > :not([hidden]) ~ :not([hidden]),
+.bk-dark-app .divide-paper-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: theme('colors.night.600') !important;
+}
+
+/* --- Text ----------------------------------------------------------------- */
+/* Don't flip text on colored fills (brand / sun / ember / sky buttons + badges
+   keep their designed dark text on light colored backgrounds). */
+.bk-dark-app .text-paper-900:not(.bg-brand-400):not(.bg-brand-300):not(.bg-sun-300):not(.bg-sun-400) {
+  color: theme('colors.night.50') !important;
+}
+.bk-dark-app .text-paper-800:not(.bg-paper-100):not(.bg-paper-200) {
+  color: theme('colors.night.100') !important;
+}
+.bk-dark-app .text-paper-700 {
+  color: theme('colors.night.200') !important;
+}
+.bk-dark-app .text-paper-600 {
+  color: theme('colors.night.300') !important;
+}
+.bk-dark-app .text-paper-500 {
+  color: theme('colors.night.400') !important;
+}
+/* Buttons — make secondary/outline/ghost readable on dark without disturbing
+   brand/danger/sky fills. */
+.bk-dark-app button.bg-paper-100 {
+  background-color: theme('colors.night.700') !important;
+  color: theme('colors.night.50') !important;
+  border-color: theme('colors.night.500') !important;
+}
+.bk-dark-app button.bg-paper-100:hover {
+  background-color: theme('colors.night.600') !important;
+}
+
+/* Keep accent text colors legible on dark backgrounds */
+.bk-dark-app .text-brand-700 {
+  color: theme('colors.brand.300') !important;
+}
+.bk-dark-app .text-brand-600 {
+  color: theme('colors.brand.300') !important;
+}
+.bk-dark-app .text-sky-700 {
+  color: theme('colors.sky.300') !important;
+}
+.bk-dark-app .text-sun-700 {
+  color: theme('colors.sun.300') !important;
+}
+.bk-dark-app .text-ember-600 {
+  color: theme('colors.ember.300') !important;
+}
+
+/* --- Form controls -------------------------------------------------------- */
+.bk-dark-app input,
+.bk-dark-app textarea,
+.bk-dark-app select {
+  background-color: theme('colors.night.700') !important;
+  color: theme('colors.night.50') !important;
+  border-color: theme('colors.night.500') !important;
+}
+.bk-dark-app input::placeholder,
+.bk-dark-app textarea::placeholder {
+  color: theme('colors.night.400') !important;
+}
+.bk-dark-app input:focus,
+.bk-dark-app textarea:focus,
+.bk-dark-app select:focus {
+  border-color: theme('colors.brand.400') !important;
+}
+.bk-dark-app input:disabled,
+.bk-dark-app textarea:disabled,
+.bk-dark-app select:disabled {
+  background-color: theme('colors.night.800') !important;
+  opacity: 0.6;
+}
+.bk-dark-app select option {
+  background-color: theme('colors.night.700');
+  color: theme('colors.night.50');
+}
+
+/* --- Tables --------------------------------------------------------------- */
+.bk-dark-app table thead {
+  background-color: theme('colors.night.700') !important;
+}
+.bk-dark-app table thead th {
+  color: theme('colors.night.200') !important;
+}
+.bk-dark-app table tbody tr:hover {
+  background-color: theme('colors.night.700') !important;
+}
+.bk-dark-app table tbody td {
+  border-color: theme('colors.night.600') !important;
+}
+
+/* --- Active nav / button fills that were light -------------------------- */
+.bk-dark-app .bg-paper-900 {
+  background-color: theme('colors.brand.500') !important;
+  color: theme('colors.night.900') !important;
+}
+.bk-dark-app .hover\:bg-paper-100:hover {
+  background-color: theme('colors.night.700') !important;
+}
+
+/* --- Shadows: tone them down on dark so they don't look muddy ---------- */
+.bk-dark-app .shadow-block,
+.bk-dark-app .shadow-block-sm,
+.bk-dark-app .shadow-block-lg {
+  box-shadow:
+    0 2px 0 0 rgba(0, 0, 0, 0.5),
+    0 6px 12px -6px rgba(0, 0, 0, 0.45) !important;
+}
+.bk-dark-app .shadow-inset {
+  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+/* --- Code / pre blocks --------------------------------------------------- */
+.bk-dark-app pre,
+.bk-dark-app code {
+  color: theme('colors.night.100');
+}
+
+/* Selection color in dark mode */
+.bk-dark-app ::selection {
+  background-color: theme('colors.brand.400');
+  color: theme('colors.night.900');
+}
+

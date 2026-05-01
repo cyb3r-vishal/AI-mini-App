@@ -1,0 +1,19 @@
+{
+  "name": "AI App Generator",
+  "short_name": "AI Gen",
+  "description": "Config-driven app generator — JSON in, full app runtime out.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+# ==============================================================================
+# Local/single-host deployment for the AI App Generator.
+# ==============================================================================
+#   docker compose up -d --build
+#   # then open http://localhost:3000
+#
+# Services:
+#   - postgres  : PostgreSQL 16
+#   - backend   : Express API, auto-runs `prisma migrate deploy` on boot
+#   - frontend  : Next.js 14 (standalone prod server)
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_gen
+    ports:
+      # Host 5433 -> container 5432, because a local Windows PostgreSQL
+      # service commonly occupies 5432. Update DATABASE_URL accordingly
+      # when connecting from the host (see apps/backend/.env).
+      - "5433:5432"
+    volumes:
+      - ai_gen_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_gen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_gen?schema=public
+      # CHANGE THESE IN REAL DEPLOYMENTS — generate 48+ bytes of randomness.
+      JWT_ACCESS_SECRET: dev_access_secret_replace_me_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      JWT_REFRESH_SECRET: dev_refresh_secret_replace_me_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
+      BCRYPT_ROUNDS: "12"
+      COOKIE_SECURE: "false"
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+        NEXT_PUBLIC_APP_NAME: AI App Generator
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  ai_gen_pgdata:

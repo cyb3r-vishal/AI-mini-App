@@ -1,0 +1,69 @@
+{
+  "id": "crm",
+  "name": "Mini CRM",
+  "description": "A tiny customer relationship manager.",
+  "version": "1.0.0",
+  "theme": {
+    "mode": "light",
+    "primaryColor": "#0f172a",
+    "accentColor": "#6366f1"
+  },
+  "auth": {
+    "enabled": true,
+    "providers": ["email", "google"]
+  },
+  "entities": [
+    {
+      "key": "customer",
+      "name": "Customer",
+      "fields": [
+        { "type": "string", "key": "name", "label": "Name", "required": true },
+        { "type": "email", "key": "email", "required": true, "unique": true },
+        { "type": "select", "key": "status", "options": [
+            { "value": "lead", "label": "Lead" },
+            { "value": "active", "label": "Active" }
+        ]},
+        { "type": "number", "key": "value", "min": 0 }
+      ],
+      "displayField": "name"
+    },
+    {
+      "key": "deal",
+      "name": "Deal",
+      "fields": [
+        { "type": "string", "key": "title", "required": true },
+        { "type": "relation", "key": "customer", "entity": "customer", "cardinality": "one" },
+        { "type": "number", "key": "amount" }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "key": "customers",
+      "type": "table",
+      "title": "Customers",
+      "entity": "customer",
+      "columns": [
+        { "field": "name" },
+        { "field": "email" },
+        { "field": "status", "filterable": true }
+      ]
+    },
+    {
+      "key": "customer-form",
+      "type": "form",
+      "title": "New customer",
+      "entity": "customer",
+      "submitLabel": "Create customer"
+    },
+    {
+      "key": "home",
+      "type": "dashboard",
+      "title": "Overview",
+      "widgets": [
+        { "key": "total", "type": "metric", "title": "Customers", "entity": "customer", "aggregate": "count", "span": 3 },
+        { "key": "recent", "type": "list", "title": "Recent customers", "entity": "customer", "limit": 5, "span": 9 }
+      ]
+    }
+  ]
+}

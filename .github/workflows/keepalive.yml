@@ -1,0 +1,71 @@
+# ==============================================================================
+# Keep the free-tier backend warm.
+# ------------------------------------------------------------------------------
+# Render / Koyeb / Fly free web services spin down after ~15 minutes of
+# inactivity, which causes a 30s cold start on the next real request. This
+# workflow pings the backend's /health/ping endpoint every 10 minutes so the
+# service never goes fully idle.
+#
+# Setup:
+#   1. Deploy the backend and copy its public URL.
+#   2. Repo → Settings → Secrets and variables → Actions → New repository
+#      secret named `BACKEND_URL` with the value, e.g.
+#         https://ai-gen-backend.onrender.com
+#      (no trailing slash).
+#   3. That's it — the next scheduled run will start pinging.
+#
+# Notes:
+#   * GitHub Actions cron granularity is 5 min minimum; 10 min is plenty.
+#   * Cron uses UTC.
+#   * The job is free for public repos; private repos use included
+#     Actions minutes (~2000/mo on Free — this workflow costs ~6 min/mo).
+# ==============================================================================
+
+name: Keepalive ping
+
+on:
+  schedule:
+    # Every 10 minutes, around the clock.
+    - cron: '*/10 * * * *'
+  # Allow manual runs from the Actions tab for debugging.
+  workflow_dispatch:
+
+# Only one keepalive in flight at a time — cancel any overlap.
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping backend /health/ping
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "::error::Repository secret BACKEND_URL is not set."
+            exit 1
+          fi
+
+          URL="${BACKEND_URL%/}/health/ping"
+          echo "Pinging ${URL}"
+
+          # Retry up to 3 times with a 40s connect/response budget each —
+          # Render cold starts can legitimately take ~30s.
+          HTTP_CODE=$(curl -sS -o /tmp/body.txt -w "%{http_code}" \
+            --retry 3 --retry-delay 5 --retry-connrefused \
+            --connect-timeout 10 --max-time 40 \
+            "${URL}") || {
+              echo "::error::curl failed for ${URL}"
+              exit 1
+            }
+
+          echo "HTTP ${HTTP_CODE}"
+          echo "Body: $(cat /tmp/body.txt)"
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Unexpected status code ${HTTP_CODE}"
+            exit 1
+          fi

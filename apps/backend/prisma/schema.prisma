@@ -1,0 +1,214 @@
+// =============================================================================
+// AI App Generator — PostgreSQL schema
+// =============================================================================
+// Multi-tenant, config-driven. Owner: User → Apps → Entities → Records.
+// Dynamic per-entity shapes are stored as JSONB on Record.data.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// User — auth principal and tenant root
+// -----------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String?
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  apps          App[]
+  sessions      Session[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+// -----------------------------------------------------------------------------
+// Session — auth sessions / refresh tokens
+// -----------------------------------------------------------------------------
+model Session {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  tokenHash    String   @unique @map("token_hash") // hash of refresh/session token
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+  expiresAt    DateTime @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+// -----------------------------------------------------------------------------
+// App — a generated app owned by a user (tenant boundary)
+// -----------------------------------------------------------------------------
+model App {
+  id          String    @id @default(cuid())
+  ownerId     String    @map("owner_id")
+  slug        String                          // URL-safe identifier, unique per owner
+  name        String
+  description String?
+  status      AppStatus @default(DRAFT)
+  isPublic    Boolean   @default(false) @map("is_public")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  publishedAt DateTime? @map("published_at")
+
+  owner     User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  configs   AppConfig[]
+  entities  Entity[]
+
+  // Slug unique *within* an owner — multi-tenant isolation.
+  @@unique([ownerId, slug])
+  @@index([ownerId])
+  @@index([status])
+  @@index([ownerId, status])
+  @@index([updatedAt])
+  @@map("apps")
+}
+
+enum AppStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// -----------------------------------------------------------------------------
+// AppConfig — versioned JSON config driving the runtime
+// -----------------------------------------------------------------------------
+// Every save produces a new version; exactly one is marked `isActive` per app.
+model AppConfig {
+  id        String   @id @default(cuid())
+  appId     String   @map("app_id")
+  version   Int                              // monotonically increasing per app
+  config    Json     @db.JsonB               // full AppConfig JSON
+  checksum  String?                          // sha256 of canonical JSON, for dedup
+  isActive  Boolean  @default(false) @map("is_active")
+  notes     String?                          // optional change note
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, version])
+  @@index([appId])
+  @@index([appId, isActive])
+  @@index([createdAt])
+  @@map("app_configs")
+}
+
+// -----------------------------------------------------------------------------
+// Entity — per-app "table" definition (metadata only)
+// -----------------------------------------------------------------------------
+// Describes the shape of Records. The actual per-field schema (name, type,
+// required, index hints, etc.) is stored in `schema` as JSONB so it can
+// evolve without DB migrations.
+model Entity {
+  id          String  @id @default(cuid())
+  appId       String  @map("app_id")
+  key         String                         // machine name, e.g. "customers"
+  name        String                         // display name, e.g. "Customers"
+  description String?
+  schema      Json    @db.JsonB              // field definitions + validators
+  isSystem    Boolean @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  app     App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  records Record[]
+
+  @@unique([appId, key])
+  @@index([appId])
+  @@map("entities")
+}
+
+// -----------------------------------------------------------------------------
+// Record — dynamic row for an Entity; schemaless payload in JSONB
+// -----------------------------------------------------------------------------
+// This is the high-volume table. `data` is JSONB so each entity can have any
+// shape. A GIN index on `data` is created via a migration for fast containment
+// queries (`data @> '{...}'`).
+model Record {
+  id        String   @id @default(cuid())
+  entityId  String   @map("entity_id")
+  appId     String   @map("app_id")        // denormalized for tenant-scoped queries
+  ownerId   String   @map("owner_id")      // denormalized from App.ownerId
+  data      Json     @db.JsonB             // dynamic payload
+  isDeleted Boolean  @default(false) @map("is_deleted") // soft delete
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([appId])
+  @@index([ownerId])
+  @@index([entityId, isDeleted])
+  @@index([entityId, createdAt])
+  @@index([entityId, updatedAt])
+  // NOTE: A GIN index on `data` is added in the initial migration
+  // (Prisma cannot express GIN indexes declaratively yet).
+  @@map("records")
+}
+
+// -----------------------------------------------------------------------------
+// Notification — per-user, event-driven
+// -----------------------------------------------------------------------------
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String             @map("user_id")          // recipient
+  type      NotificationType
+  title     String
+  message   String?
+  /// Small JSONB payload with the event context (appId, entityKey, recordId, ...).
+  meta      Json               @db.JsonB
+  readAt    DateTime?          @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  RECORD_CREATED
+  RECORD_UPDATED
+  RECORD_DELETED
+  SYSTEM
+}

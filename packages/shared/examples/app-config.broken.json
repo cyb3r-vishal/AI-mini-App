@@ -1,0 +1,30 @@
+{
+  "name": "Broken App",
+  "theme": { "primaryColor": "not-a-color", "mode": "neon" },
+  "auth": { "providers": ["email", "myspace"] },
+  "entities": [
+    {
+      "key": "post",
+      "name": "Post",
+      "fields": [
+        { "type": "string", "key": "title", "required": true },
+        { "type": "??", "key": "what" },
+        { "type": "relation", "key": "author", "entity": "ghost" }
+      ]
+    },
+    { "key": "post", "name": "Duplicate", "fields": [] }
+  ],
+  "pages": [
+    { "key": "p1", "type": "table", "title": "Posts", "entity": "post" },
+    { "key": "p2", "type": "wizard", "title": "???" },
+    {
+      "key": "home",
+      "type": "dashboard",
+      "title": "Home",
+      "widgets": [
+        { "key": "w1", "type": "metric", "title": "OK", "entity": "post" },
+        { "key": "w2", "type": "unicorn", "title": "??" }
+      ]
+    }
+  ]
+}
