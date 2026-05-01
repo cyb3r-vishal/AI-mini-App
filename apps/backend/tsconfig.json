@@ -7,9 +7,10 @@
     "moduleResolution": "Bundler",
     "types": ["node", "express"],
     "baseUrl": ".",
-    // TypeScript 6 warns that `baseUrl` is deprecated and 7 will remove it.
-    // We still use it for the monorepo `paths` mapping, so silence the warning.
-    "ignoreDeprecations": "6.0",
+    // `baseUrl` is deprecated and TypeScript 7 will remove it. We still use it
+    // for the monorepo `paths` mapping, so silence the warning. The only
+    // accepted value in TS 5.x is "5.0" — bumping this if/when we move to TS 6.
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": ["src/*"],
       "@ai-gen/shared": ["../../packages/shared/src/index.ts"],
