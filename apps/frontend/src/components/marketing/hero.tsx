@@ -25,7 +25,10 @@ export function Hero() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    const phrase = typewriterPhrases[i % typewriterPhrases.length];
+    // `typewriterPhrases` is a non-empty literal; the modulo always hits a
+    // valid index. Fall back to the empty string to satisfy the
+    // `noUncheckedIndexedAccess` TS check without a non-null assertion.
+    const phrase = typewriterPhrases[i % typewriterPhrases.length] ?? '';
     const speed = deleting ? 25 : 55;
     const t = setTimeout(() => {
       if (!deleting) {

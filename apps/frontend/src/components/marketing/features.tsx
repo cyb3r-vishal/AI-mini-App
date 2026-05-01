@@ -38,7 +38,11 @@ const features: Feature[] = [
 
 export function Features() {
   const [active, setActive] = useState(0);
-  const f = features[active];
+  // `features` is a non-empty literal, so [0] is always defined.
+  // With `noUncheckedIndexedAccess`, indexed access on an array is typed
+  // `T | undefined`, so fall back to features[0] to keep `f` non-nullable
+  // without needing a non-null assertion.
+  const f = features[active] ?? features[0]!;
 
   return (
     <section
