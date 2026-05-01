@@ -42,14 +42,30 @@ jobs:
     steps:
       - name: Ping backend /health/ping
         env:
-          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          RAW_BACKEND_URL: ${{ secrets.BACKEND_URL }}
         run: |
+          # Sanitize the secret: secrets pasted via the GitHub UI can include
+          # an accidental trailing newline, CR, or whitespace which turns
+          # "https://host\n/health/ping" into a malformed URL. Strip all
+          # whitespace/CR/newlines/trailing slashes here so a sloppy secret
+          # can never break the ping.
+          BACKEND_URL=$(printf '%s' "${RAW_BACKEND_URL}" | tr -d '[:space:]\r\n' | sed 's:/*$::')
+
           if [ -z "${BACKEND_URL}" ]; then
-            echo "::error::Repository secret BACKEND_URL is not set."
+            echo "::error::Repository secret BACKEND_URL is not set (or empty after trim)."
             exit 1
           fi
 
-          URL="${BACKEND_URL%/}/health/ping"
+          # Basic scheme sanity check so a bad value fails fast and obvious.
+          case "${BACKEND_URL}" in
+            http://*|https://*) ;;
+            *)
+              echo "::error::BACKEND_URL must start with http:// or https:// (got: '${BACKEND_URL}')."
+              exit 1
+              ;;
+          esac
+
+          URL="${BACKEND_URL}/health/ping"
           echo "Pinging ${URL}"
 
           # Retry up to 3 times with a 40s connect/response budget each —
