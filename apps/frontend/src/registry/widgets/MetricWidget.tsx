@@ -12,7 +12,11 @@ import type { WidgetRenderer } from '../widget.types';
  * that's plenty; a server-side aggregate endpoint can replace this later.
  */
 export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
-  if (widget.type !== 'metric') return null;
+  // Always call hooks; narrow widget type via a flag.
+  const isMetric = widget.type === 'metric';
+  const entity = isMetric ? widget.entity : '';
+  const aggregate = isMetric ? widget.aggregate : 'count';
+  const field = isMetric ? widget.field : undefined;
 
   const ds = useDataSource();
   const [value, setValue] = useState<number | null>(null);
@@ -20,6 +24,7 @@ export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isMetric) return;
     if (!ds && !appId) {
       setLoading(false);
       return;
@@ -31,21 +36,20 @@ export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
       try {
         // `count` only needs the total; everything else needs the values.
         // Server caps pageSize at 200; fine for hackathon-scale datasets.
-        const pageSize = widget.aggregate === 'count' ? 1 : 200;
+        const pageSize = aggregate === 'count' ? 1 : 200;
         const res = ds
-          ? await ds.listRecords(widget.entity, { page: 1, pageSize })
-          : await api.records.list(appId!, widget.entity, {
+          ? await ds.listRecords(entity, { page: 1, pageSize })
+          : await api.records.list(appId!, entity, {
               page: 1,
               pageSize,
             });
         if (cancelled) return;
 
-        if (widget.aggregate === 'count') {
+        if (aggregate === 'count') {
           setValue(res.total);
           return;
         }
 
-        const field = widget.field;
         if (!field) {
           setValue(null);
           setErr('missing field');
@@ -61,7 +65,7 @@ export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
           setValue(null);
           return;
         }
-        switch (widget.aggregate) {
+        switch (aggregate) {
           case 'sum':
             setValue(nums.reduce((a, b) => a + b, 0));
             break;
@@ -88,7 +92,7 @@ export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
     return () => {
       cancelled = true;
     };
-  }, [ds, appId, widget.entity, widget.aggregate, widget.field]);
+  }, [isMetric, ds, appId, entity, aggregate, field]);
 
   const display = useMemo(() => {
     if (loading) return '…';
@@ -97,6 +101,8 @@ export const MetricWidget: WidgetRenderer = ({ widget, appId }) => {
     if (Number.isInteger(value)) return value.toLocaleString();
     return Number(value.toFixed(2)).toLocaleString();
   }, [loading, value]);
+
+  if (!isMetric) return null;
 
   return (
     <Card tone="brand">

@@ -12,10 +12,14 @@ import type { WidgetRenderer } from '../widget.types';
  * falls back to the first string-ish field, else the record id.
  */
 export const ListWidget: WidgetRenderer = ({ widget, config, appId }) => {
-  if (widget.type !== 'list') return null;
+  // Always call hooks; narrow type via a flag to keep rules-of-hooks happy.
+  const isList = widget.type === 'list';
+  const entityKey = isList ? widget.entity : '';
+  const limit = isList ? widget.limit : 0;
+  const sort = isList ? widget.sort : 'newest';
 
   const ds = useDataSource();
-  const entity = config.entities.find((e) => e.key === widget.entity);
+  const entity = config.entities.find((e) => e.key === entityKey);
   const displayField =
     entity?.displayField ??
     entity?.fields.find((f) =>
@@ -27,6 +31,7 @@ export const ListWidget: WidgetRenderer = ({ widget, config, appId }) => {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isList) return;
     if (!ds && !appId) {
       setLoading(false);
       return;
@@ -38,15 +43,15 @@ export const ListWidget: WidgetRenderer = ({ widget, config, appId }) => {
       try {
         const query = {
           page: 1,
-          pageSize: widget.limit,
+          pageSize: limit,
           sort:
-            widget.sort === 'oldest'
+            sort === 'oldest'
               ? 'createdAt:asc'
               : ('createdAt:desc' as const),
         };
         const res = ds
-          ? await ds.listRecords(widget.entity, query)
-          : await api.records.list(appId!, widget.entity, query);
+          ? await ds.listRecords(entityKey, query)
+          : await api.records.list(appId!, entityKey, query);
         if (!cancelled) setItems(res.items);
       } catch (e) {
         if (!cancelled) {
@@ -65,7 +70,9 @@ export const ListWidget: WidgetRenderer = ({ widget, config, appId }) => {
     return () => {
       cancelled = true;
     };
-  }, [ds, appId, widget.entity, widget.limit, widget.sort]);
+  }, [isList, ds, appId, entityKey, limit, sort]);
+
+  if (!isList) return null;
 
   return (
     <Card>

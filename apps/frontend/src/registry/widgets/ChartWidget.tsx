@@ -14,7 +14,12 @@ import type { WidgetRenderer } from '../widget.types';
  * group + count) we always count.
  */
 export const ChartWidget: WidgetRenderer = ({ widget, appId }) => {
-  if (widget.type !== 'chart') return null;
+  // Hooks MUST be called unconditionally (rules-of-hooks). Narrow the
+  // widget type lazily inside the effect instead of early-returning first.
+  const isChart = widget.type === 'chart';
+  const entity = isChart ? widget.entity : '';
+  const xField = isChart ? widget.xField : '';
+  const yField = isChart ? widget.yField : '';
 
   const ds = useDataSource();
   const [items, setItems] = useState<RecordItem[]>([]);
@@ -22,6 +27,7 @@ export const ChartWidget: WidgetRenderer = ({ widget, appId }) => {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isChart) return;
     if (!ds && !appId) {
       setLoading(false);
       return;
@@ -33,8 +39,8 @@ export const ChartWidget: WidgetRenderer = ({ widget, appId }) => {
       try {
         const q = { page: 1, pageSize: 200 };
         const res = ds
-          ? await ds.listRecords(widget.entity, q)
-          : await api.records.list(appId!, widget.entity, q);
+          ? await ds.listRecords(entity, q)
+          : await api.records.list(appId!, entity, q);
         if (!cancelled) setItems(res.items);
       } catch (e) {
         if (!cancelled) {
@@ -53,20 +59,21 @@ export const ChartWidget: WidgetRenderer = ({ widget, appId }) => {
     return () => {
       cancelled = true;
     };
-  }, [ds, appId, widget.entity]);
+  }, [isChart, ds, appId, entity]);
 
   const buckets = useMemo(() => {
+    if (!isChart) return [] as Array<{ label: string; value: number }>;
     if (items.length === 0) return [] as Array<{ label: string; value: number }>;
-    const countOnly = widget.xField === widget.yField;
+    const countOnly = xField === yField;
     const map = new Map<string, number>();
     for (const it of items) {
       const data = it.data as Record<string, unknown>;
-      const rawX = data[widget.xField];
+      const rawX = data[xField];
       const key =
         rawX === null || rawX === undefined ? '(none)' : String(rawX);
       let delta = 1;
       if (!countOnly) {
-        const rawY = data[widget.yField];
+        const rawY = data[yField];
         const n = typeof rawY === 'number' ? rawY : Number(rawY);
         delta = Number.isFinite(n) ? n : 0;
       }
@@ -76,7 +83,10 @@ export const ChartWidget: WidgetRenderer = ({ widget, appId }) => {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
-  }, [items, widget.xField, widget.yField]);
+  }, [isChart, items, xField, yField]);
+
+  // Safe to bail after all hooks have been called.
+  if (!isChart) return null;
 
   const max = buckets.reduce((m, b) => Math.max(m, b.value), 0) || 1;
 

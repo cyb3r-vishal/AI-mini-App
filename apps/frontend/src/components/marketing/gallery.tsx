@@ -103,7 +103,7 @@ export function Gallery() {
             href="/signup"
             className="inline-flex items-center gap-2 rounded-block border-3 border-brand-300 bg-brand-400 px-5 py-3 text-sm font-semibold text-night-900 shadow-[0_3px_0_0_rgba(0,0,0,0.45)] transition-transform hover:bg-brand-300 active:translate-y-[2px]"
           >
-            Build yours — it's free
+            Build yours &mdash; it&apos;s free
             <svg
               viewBox="0 0 24 24"
               fill="none"
