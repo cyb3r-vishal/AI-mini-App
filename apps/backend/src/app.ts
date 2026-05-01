@@ -24,7 +24,24 @@ export function createApp(): Express {
   app.set('trust proxy', 1); // respect X-Forwarded-* behind a proxy
 
   app.use(helmet());
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+
+  // CORS: env.CORS_ORIGIN is a normalized array (see config/env.ts). Compare
+  // the request's Origin against the allowlist with trailing slashes stripped
+  // so a sloppy env value (`https://app.com/`) still works. Requests without
+  // an Origin (curl, same-origin, server-to-server) are always allowed.
+  const allowedOrigins = new Set(env.CORS_ORIGIN);
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        const normalized = origin.replace(/\/+$/, '');
+        if (allowedOrigins.has(normalized)) return cb(null, true);
+        return cb(new Error(`Origin ${origin} not allowed by CORS`));
+      },
+      credentials: true,
+    }),
+  );
+
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());

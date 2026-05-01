@@ -8,7 +8,23 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  /**
+   * Comma-separated list of allowed browser origins for CORS.
+   * Normalized at parse time:
+   *   - whitespace trimmed
+   *   - trailing slashes stripped (so `https://app.com/` === `https://app.com`)
+   *   - empty entries dropped
+   * Example: "https://app.vercel.app, https://staging.vercel.app"
+   */
+  CORS_ORIGIN: z
+    .string()
+    .default('http://localhost:3000')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().replace(/\/+$/, ''))
+        .filter(Boolean),
+    ),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   DATABASE_URL: z
     .string()
